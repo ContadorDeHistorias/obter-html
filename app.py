@@ -8,6 +8,7 @@ import time
 import random
 import gzip
 import brotli
+import zlib
 
 st.set_page_config(page_title="Baixar HTML", layout="centered")
 st.title("📥 Baixar HTML de sites")
@@ -16,7 +17,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",  # Aceita compressão
+    "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
@@ -40,17 +41,13 @@ def decompress_content(response):
 
 def get_html_text(response):
     """Extrai texto HTML corretamente."""
-    # Tenta descomprimir se necessário
     content = decompress_content(response)
-    
-    # Detecta encoding
     encoding = response.apparent_encoding or 'utf-8'
     
     try:
-        # Tenta decodificar        html_text = content.decode(encoding, errors='replace')
-    except:
-        html_text = content.decode('utf-8', errors='replace')
-    
+        html_text = content.decode(encoding, errors='replace')
+    except Exception:
+        html_text = content.decode('utf-8', errors='replace')    
     return html_text
 
 def safe_filename(url: str) -> str:
@@ -65,7 +62,7 @@ def is_valid_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
-    except:
+    except Exception:
         return False
 
 def human_delay(min_sec=2, max_sec=5):
@@ -96,10 +93,10 @@ if st.button("🔽 Baixar HTML", disabled=not links):
     zip_buffer = BytesIO()
     success_count = 0
     
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:        for i, link in enumerate(valid_links):
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for i, link in enumerate(valid_links):
             if i > 0:
-                delay = human_delay(3, 7)
-                status_text.text(f"😴 Aguardando {delay:.1f}s...")
+                delay = human_delay(3, 7)                status_text.text(f"😴 Aguardando {delay:.1f}s...")
             
             status_text.text(f"📥 {i+1}/{len(valid_links)}: {link[:50]}...")
             
@@ -111,16 +108,13 @@ if st.button("🔽 Baixar HTML", disabled=not links):
                 resp = session.get(link, timeout=30, headers=headers, allow_redirects=True)
                 resp.raise_for_status()
                 
-                # Verifica se é HTML
                 content_type = resp.headers.get('Content-Type', '').lower()
                 if 'text/html' not in content_type and 'application/xhtml' not in content_type:
-                    st.warning(f"⚠️ {link[:50]}... não é HTML ({content_type})")
+                    st.warning(f"⚠️ {link[:50]}... não é HTML")
                     continue
                 
-                # Extrai HTML corretamente
                 html_text = get_html_text(resp)
                 
-                # Valida se parece HTML válido
                 if not html_text.strip().startswith(('<!DOCTYPE', '<html', '<HTML')):
                     st.warning(f"⚠️ {link[:50]}... conteúdo inválido")
                     continue
@@ -145,7 +139,8 @@ if st.button("🔽 Baixar HTML", disabled=not links):
         st.download_button(
             label="📦 Baixar ZIP",
             data=zip_buffer,
-            file_name="sites_html.zip",            mime="application/zip"
+            file_name="sites_html.zip",
+            mime="application/zip"
         )
     else:
         st.error("❌ Nenhuma página válida baixada.")
