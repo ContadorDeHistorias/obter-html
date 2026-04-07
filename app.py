@@ -23,10 +23,8 @@ HEADERS = {
 }
 
 def decompress_content(response):
-    """Descomprime conteúdo se necessário."""
     content = response.content
     encoding = response.headers.get('Content-Encoding', '').lower()
-    
     try:
         if 'gzip' in encoding:
             content = gzip.decompress(content)
@@ -36,29 +34,23 @@ def decompress_content(response):
             content = zlib.decompress(content)
     except Exception as e:
         st.warning(f"Aviso: Erro ao descomprimir: {e}")
-    
     return content
 
 def get_html_text(response):
-    """Extrai texto HTML corretamente."""
     content = decompress_content(response)
     encoding = response.apparent_encoding or 'utf-8'
-    
     try:
         html_text = content.decode(encoding, errors='replace')
     except Exception:
-        html_text = content.decode('utf-8', errors='replace')    
+        html_text = content.decode('utf-8', errors='replace')
     return html_text
 
 def safe_filename(url: str) -> str:
-    """Gera nome de arquivo seguro."""
     parsed = urlparse(url)
-    name = parsed.netloc + parsed.path
-    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    name = parsed.netloc + parsed.path    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
     return (name.strip('_') or 'page') + '.html'
 
 def is_valid_url(url: str) -> bool:
-    """Valida URL."""
     try:
         parsed = urlparse(url)
         return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
@@ -66,7 +58,6 @@ def is_valid_url(url: str) -> bool:
         return False
 
 def human_delay(min_sec=2, max_sec=5):
-    """Delay aleatório."""
     delay = random.uniform(min_sec, max_sec)
     time.sleep(delay)
     return delay
@@ -89,14 +80,14 @@ if st.button("🔽 Baixar HTML", disabled=not links):
     progress_bar = st.progress(0)
     status_text = st.empty()
     session = requests.Session()
-    
     zip_buffer = BytesIO()
     success_count = 0
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for i, link in enumerate(valid_links):
             if i > 0:
-                delay = human_delay(3, 7)                status_text.text(f"😴 Aguardando {delay:.1f}s...")
+                delay = human_delay(3, 7)
+                status_text.text(f"😴 Aguardando {delay:.1f}s...")
             
             status_text.text(f"📥 {i+1}/{len(valid_links)}: {link[:50]}...")
             
@@ -105,8 +96,7 @@ if st.button("🔽 Baixar HTML", disabled=not links):
                 if i > 0:
                     headers["Referer"] = valid_links[i-1]
                 
-                resp = session.get(link, timeout=30, headers=headers, allow_redirects=True)
-                resp.raise_for_status()
+                resp = session.get(link, timeout=30, headers=headers, allow_redirects=True)                resp.raise_for_status()
                 
                 content_type = resp.headers.get('Content-Type', '').lower()
                 if 'text/html' not in content_type and 'application/xhtml' not in content_type:
